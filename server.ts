@@ -92,7 +92,7 @@ app.post("/api/convert", async (req, res) => {
     };
 
     // Store in our database
-    store.conversions.set(conversionId, result);
+    await store.conversions.set(conversionId, result);
 
     res.json(result);
   } catch (err: any) {
@@ -155,7 +155,7 @@ app.post("/api/refine", async (req, res) => {
     };
 
     // Store in our database
-    store.conversions.set(conversionId, result);
+    await store.conversions.set(conversionId, result);
 
     res.json(result);
   } catch (err: any) {
@@ -243,7 +243,7 @@ app.post("/api/batch", async (req, res) => {
           dryRun: !!isDryRun,
         };
 
-        store.conversions.set(conversionId, conversionRecord);
+        await store.conversions.set(conversionId, conversionRecord);
 
         results.push({
           file: file.path,
@@ -299,7 +299,7 @@ app.post("/api/canvas/trigger", async (req, res) => {
     const runId = await triggerRun(canvasId);
 
     // Save run state
-    store.runs.set(runId, {
+    await store.runs.set(runId, {
       runId,
       canvasId,
       status: "running",
@@ -319,12 +319,11 @@ app.post("/api/canvas/trigger", async (req, res) => {
 });
 
 // GET /api/canvas/:id - Fetch status/details of a canvas
-app.get("/api/canvas/:id", (req, res) => {
+app.get("/api/canvas/:id", async (req, res) => {
   const id = req.params.id;
 
   // Search through converted logs for this canvasId
-  const conversionsList = Array.from(store.conversions.values());
-  const found = conversionsList.find((c) => c.canvasId === id);
+  const found = await store.conversions.findByCanvasId(id);
 
   if (!found) {
     res.status(404).json({
@@ -337,8 +336,7 @@ app.get("/api/canvas/:id", (req, res) => {
   }
 
   // Check if we have active runs
-  const runsList = Array.from(store.runs.values());
-  const canvasRun = runsList.find((r) => r.canvasId === id);
+  const canvasRun = await store.runs.findByCanvasId(id);
 
   res.json({
     id,
@@ -367,13 +365,12 @@ app.get("/api/run-log/:canvas_id", async (req, res) => {
   console.log(`[SSE] Opened log stream for canvas: ${canvasId}`);
 
   // Retrieve the latest run for this canvas, or dynamically spawn a simulated run ID
-  const runsList = Array.from(store.runs.values());
-  let targetRun = runsList.find((r) => r.canvasId === canvasId);
+  let targetRun = await store.runs.findByCanvasId(canvasId);
   let runId = targetRun ? targetRun.runId : `sp-run-mock-${Math.random().toString(36).substring(2, 9)}`;
 
   if (!targetRun) {
     // Save state so we track it
-    store.runs.set(runId, {
+    await store.runs.set(runId, {
       runId,
       canvasId,
       status: "running",
@@ -420,11 +417,11 @@ app.get("/api/run-log/:canvas_id", async (req, res) => {
         const finalStatus = hasFailures ? "failure" : "success";
 
         // Update stored run record
-        const runRecord = store.runs.get(runId);
+        const runRecord = await store.runs.get(runId);
         if (runRecord) {
           runRecord.status = finalStatus;
           runRecord.completedAt = new Date().toISOString();
-          store.runs.set(runId, runRecord);
+          await store.runs.set(runId, runRecord);
         }
 
         res.write(`data: ${JSON.stringify({ type: "done", status: finalStatus })}\n\n`);
