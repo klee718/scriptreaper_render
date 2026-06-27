@@ -1,0 +1,6 @@
+{
+  "name": "ScriptReaper",
+  "description": "Convert Bash scripts into production-ready SuperPlane workflow canvas configurations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,25 @@
+services:
+  # Unified ScriptReaper Service (API Backend + Vite Frontend)
+  - type: web
+    name: scriptreaper
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false   # User must set this in Render dashboard secrets
+      - key: SUPERPLANE_API_KEY
+        sync: false
+      - key: SUPERPLANE_ORG_ID
+        sync: false
+      - key: SUPERPLANE_BASE_URL
+        value: https://api.superplane.com
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: PORT
+        value: "3000"
