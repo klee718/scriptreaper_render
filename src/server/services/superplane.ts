@@ -36,6 +36,18 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
     "Content-Type": "application/json",
   };
 
+  // Helper to map our simulated component names to official SuperPlane actions
+  const mapComponent = (compName: string): { type: string; component: string } => {
+    const comp = compName.toLowerCase();
+    if (comp.includes("bash") || comp.includes("executor") || comp.includes("dump") || comp.includes("script")) {
+      return { type: "TYPE_ACTION", component: "runnerBash" };
+    }
+    if (comp.includes("slack") || comp.includes("ping") || comp.includes("http") || comp.includes("upload") || comp.includes("s3")) {
+      return { type: "TYPE_ACTION", component: "http" };
+    }
+    return { type: "TYPE_ACTION", component: "runnerBash" }; // Default action
+  };
+
   // Build the request body schema from Swagger docs
   const nodes: any[] = [];
   const edges: any[] = [];
@@ -44,10 +56,18 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
     // 1. Add trigger node if exists
     if (canvasJson.trigger) {
       const triggerId = "trigger-setup";
+      let triggerComponent = "start"; // Default manual trigger
+      if (canvasJson.trigger.type === "schedule") {
+        triggerComponent = "schedule";
+      } else if (canvasJson.trigger.type === "webhook") {
+        triggerComponent = "webhook";
+      }
+
       nodes.push({
         id: triggerId,
         name: `Trigger (${canvasJson.trigger.type})`,
-        component: "superplane/trigger",
+        type: "TYPE_TRIGGER",
+        component: triggerComponent,
         position: { x: 100, y: 300 },
         configuration: canvasJson.trigger.schedule || canvasJson.trigger.webhook || {},
       });
@@ -65,10 +85,12 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
 
     // 2. Add steps as nodes
     canvasJson.steps.forEach((step: any, index: number) => {
+      const mapped = mapComponent(step.component);
       nodes.push({
         id: step.id,
         name: step.name,
-        component: step.component,
+        type: mapped.type,
+        component: mapped.component,
         position: { x: (index + 1) * 300 + 100, y: 300 },
         configuration: step.inputs || {},
       });
@@ -92,7 +114,8 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
     nodes.push({
       id: "workflow-entry",
       name: name,
-      component: "superplane/bash-executor",
+      type: "TYPE_ACTION",
+      component: "runnerBash",
       position: { x: 100, y: 300 },
       configuration: {},
     });
