@@ -8,6 +8,7 @@ import { createCanvas, triggerRun, getRunItems } from "./src/server/services/sup
 import { listShellScripts } from "./src/server/services/github.js";
 import { store } from "./src/server/services/store.js";
 import { demoScripts } from "./src/server/constants/demoScripts.js";
+import { sendSlackMessage } from "./src/server/services/slack.js";
 
 // Load dotenv
 import dotenv from "dotenv";
@@ -93,6 +94,16 @@ app.post("/api/convert", async (req, res) => {
 
     // Store in our database
     await store.conversions.set(conversionId, result);
+
+    // Dispatch Slack Alert for script conversion
+    sendSlackMessage(
+      `💀 *ScriptReaper: Script Converted!* \n` +
+      `• *Name:* \`${result.name}\`\n` +
+      `• *Canvas ID:* \`${result.canvasId || "Pending deployment"}\`\n` +
+      `• *Intent:* ${result.analysis.intent}\n` +
+      `• *Steps:* ${result.analysis.stepCount} steps\n` +
+      `• *Trigger:* \`${result.analysis.triggerType}\`${result.analysis.cronExpression ? ` (\`${result.analysis.cronExpression}\`)` : ""}`
+    );
 
     res.json(result);
   } catch (err: any) {
@@ -423,6 +434,21 @@ app.get("/api/run-log/:canvas_id", async (req, res) => {
           runRecord.completedAt = new Date().toISOString();
           await store.runs.set(runId, runRecord);
         }
+
+        // Fetch canvas details for alert context
+        const conv = await store.conversions.findByCanvasId(canvasId);
+        const canvasName = conv ? conv.name : "Unknown Canvas";
+
+        const emoji = finalStatus === "success" ? "✅" : "🚨";
+        const statusText = finalStatus === "success" ? "*SUCCESS*" : "*FAILURE*";
+        sendSlackMessage(
+          `${emoji} *ScriptReaper Run Completed: ${statusText}* \n` +
+          `• *Workflow Canvas:* \`${canvasName}\`\n` +
+          `• *Canvas ID:* \`${canvasId}\`\n` +
+          `• *Run ID:* \`${runId}\`\n` +
+          `• *Duration:* ${Math.round((Date.now() - (runRecord ? new Date(runRecord.startedAt).getTime() : Date.now())) / 1000)}s\n` +
+          `• *Steps Evaluated:* ${items.length} nodes`
+        );
 
         res.write(`data: ${JSON.stringify({ type: "done", status: finalStatus })}\n\n`);
         res.end();
