@@ -78,7 +78,7 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
         edges.push({
           sourceId: triggerId,
           targetId: firstStep.id,
-          channel: "default",
+          channel: "default", // Trigger nodes output via "default" channel
         });
       }
     }
@@ -96,10 +96,10 @@ export async function createCanvas(canvasYaml: string, name: string, canvasJson?
       });
 
       // Add edges for dependsOn
+      // Action nodes only expose "passed" or "failed" output channels (not "default")
       if (Array.isArray(step.dependsOn)) {
         step.dependsOn.forEach((depId: string) => {
-          let channel = "default";
-          if (step.runWhen === "success") channel = "passed";
+          let channel = "passed"; // Default for action-to-action: always "passed" unless explicitly failure
           if (step.runWhen === "failure") channel = "failed";
           edges.push({
             sourceId: depId,
