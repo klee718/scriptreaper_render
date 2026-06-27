@@ -18,7 +18,7 @@ services:
       - key: SUPERPLANE_ORG_ID
         sync: false
       - key: SUPERPLANE_BASE_URL
-        value: https://api.superplane.com
+        value: https://app.superplane.com
       - key: GITHUB_TOKEN
         sync: false
       - key: PORT

@@ -15,8 +15,7 @@ export interface RunItem {
   completedAt?: string;
 }
 
-const BASE = process.env.SUPERPLANE_BASE_URL || "https://api.superplane.com";
-const ORG = process.env.SUPERPLANE_ORG_ID || "mock-org";
+const BASE = process.env.SUPERPLANE_BASE_URL || "https://app.superplane.com";
 
 function isMockEnabled(): boolean {
   return (
@@ -38,7 +37,7 @@ export async function createCanvas(canvasYaml: string, name: string): Promise<st
   };
 
   try {
-    const res = await fetch(`${BASE}/api/v1/organizations/${ORG}/canvases`, {
+    const res = await fetch(`${BASE}/api/v1/canvases`, {
       method: "POST",
       headers,
       body: JSON.stringify({ name, definition: canvasYaml }),
@@ -68,7 +67,7 @@ export async function triggerRun(canvasId: string): Promise<string> {
   };
 
   try {
-    const res = await fetch(`${BASE}/api/v1/organizations/${ORG}/canvases/${canvasId}/runs`, {
+    const res = await fetch(`${BASE}/api/v1/canvases/${canvasId}/runs`, {
       method: "POST",
       headers,
       body: JSON.stringify({}),
@@ -97,7 +96,7 @@ export async function getRunItems(runId: string): Promise<RunItem[]> {
   };
 
   try {
-    const res = await fetch(`${BASE}/api/v1/organizations/${ORG}/runs/${runId}/items`, { headers });
+    const res = await fetch(`${BASE}/api/v1/runs/${runId}/items`, { headers });
     if (!res.ok) {
       throw new SuperPlaneError(res.status, await res.text());
     }
