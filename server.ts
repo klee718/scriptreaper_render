@@ -74,7 +74,7 @@ app.post("/api/convert", async (req, res) => {
     // Create canvas on SuperPlane Cloud (real or fallback mock ID)
     let canvasId: string | null = null;
     try {
-      canvasId = await createCanvas(canvasYaml, canvasJson.name);
+      canvasId = await createCanvas(canvasYaml, canvasJson.name, canvasJson);
     } catch (spErr: any) {
       console.error("SuperPlane API unreachable during canvas creation:", spErr.message);
     }
@@ -147,7 +147,7 @@ app.post("/api/refine", async (req, res) => {
     // Attempt to register or mock register the refined canvas on SuperPlane Cloud
     let canvasId = canvasJson.canvasId || `sp-canvas-refined-${Math.random().toString(36).substring(2, 9)}`;
     try {
-      canvasId = await createCanvas(refined.canvasYaml, refined.canvasJson.name);
+      canvasId = await createCanvas(refined.canvasYaml, refined.canvasJson.name, refined.canvasJson);
     } catch (spErr: any) {
       console.error("SuperPlane API unreachable during canvas refinement registration:", spErr.message);
     }
@@ -236,7 +236,7 @@ app.post("/api/batch", async (req, res) => {
 
         let canvasId: string | null = null;
         try {
-          canvasId = await createCanvas(canvasYaml, canvasJson.name);
+          canvasId = await createCanvas(canvasYaml, canvasJson.name, canvasJson);
         } catch (spErr: any) {
           console.warn(`SuperPlane call failed for file ${file.path}:`, spErr.message);
         }

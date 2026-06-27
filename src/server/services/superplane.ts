@@ -25,7 +25,7 @@ function isMockEnabled(): boolean {
   );
 }
 
-export async function createCanvas(canvasYaml: string, name: string): Promise<string> {
+export async function createCanvas(canvasYaml: string, name: string, canvasJson?: any): Promise<string> {
   if (isMockEnabled()) {
     console.log("[SuperPlane] Mock Mode: Creating Canvas...", { name });
     return `sp-canvas-mock-${Math.random().toString(36).substring(2, 9)}`;
@@ -36,11 +36,86 @@ export async function createCanvas(canvasYaml: string, name: string): Promise<st
     "Content-Type": "application/json",
   };
 
+  // Build the request body schema from Swagger docs
+  const nodes: any[] = [];
+  const edges: any[] = [];
+
+  if (canvasJson && Array.isArray(canvasJson.steps)) {
+    // 1. Add trigger node if exists
+    if (canvasJson.trigger) {
+      const triggerId = "trigger-setup";
+      nodes.push({
+        id: triggerId,
+        name: `Trigger (${canvasJson.trigger.type})`,
+        component: "superplane/trigger",
+        position: { x: 100, y: 300 },
+        configuration: canvasJson.trigger.schedule || canvasJson.trigger.webhook || {},
+      });
+
+      // Connect trigger to the first step that doesn't have any dependsOn
+      const firstStep = canvasJson.steps.find((s: any) => !s.dependsOn || s.dependsOn.length === 0);
+      if (firstStep) {
+        edges.push({
+          sourceId: triggerId,
+          targetId: firstStep.id,
+          channel: "default",
+        });
+      }
+    }
+
+    // 2. Add steps as nodes
+    canvasJson.steps.forEach((step: any, index: number) => {
+      nodes.push({
+        id: step.id,
+        name: step.name,
+        component: step.component,
+        position: { x: (index + 1) * 300 + 100, y: 300 },
+        configuration: step.inputs || {},
+      });
+
+      // Add edges for dependsOn
+      if (Array.isArray(step.dependsOn)) {
+        step.dependsOn.forEach((depId: string) => {
+          let channel = "default";
+          if (step.runWhen === "success") channel = "passed";
+          if (step.runWhen === "failure") channel = "failed";
+          edges.push({
+            sourceId: depId,
+            targetId: step.id,
+            channel: channel,
+          });
+        });
+      }
+    });
+  } else {
+    // Fallback if no canvasJson: create a dummy node
+    nodes.push({
+      id: "workflow-entry",
+      name: name,
+      component: "superplane/bash-executor",
+      position: { x: 100, y: 300 },
+      configuration: {},
+    });
+  }
+
+  const payload = {
+    canvas: {
+      metadata: {
+        name,
+        description: canvasJson?.analysis?.intent || "ScriptReaper converted canvas",
+      },
+      spec: {
+        nodes,
+        edges,
+      },
+    },
+  };
+
   try {
     const res = await fetch(`${BASE}/api/v1/canvases`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ name, definition: canvasYaml }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
